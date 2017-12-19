@@ -9,14 +9,11 @@ const request = require("request");
 const fs = require("fs");
 const time = require("time");
 
-
-var pokemon = require("pokemon");
-var Pokedex = require('pokedex-promise-v2');
-var P = new Pokedex();
+const ers = require("./ers.js");
 
 
 // Function to simplify logging
-function logCmd(msg, logMessage) {
+async function logCmd(msg, logMessage) {
 	const timestamp = require("node-datetime").create().format("[Y-m-d@H:M:S]");
 	const entry = `${timestamp}: ${msg.from.first_name} ${msg.from.last_name} (@${msg.from.username}) ${logMessage}`;
 	fs.appendFile(`${process.env.HOME}/.mew2/useage.log`, entry + '\n', (err) => {
@@ -26,60 +23,10 @@ function logCmd(msg, logMessage) {
 	});
 }
 
-function formatTime(seconds) {
-    const hrs = Math.floor(seconds / 60 / 60);
-    const mins = Math.floor(seconds / 60 % 60);
-    const secs = seconds % 60;
-    return `${hrs} hours, ${mins} minutes, and ${secs} seconds`;
-}
-
-async function makePokemon(id) {
-    var ret = {};
-    ret.species = pokemon.getName(id);
-    ret.speciesNum = id;
-    ret.moves = {
-
-
-    };
-}
 
 // catch a random pokemon
 bot.onText(/^\/pokemon(?:@mew2_bot)?(?:$|\s)/, msg => {
-
-    // cooldown timer to prevent user from spamming
-    var cdtimer = time.time();
-
-    try { // cdtimer = cur time - time of last /pokemon
-        cdtimer -= Number(fs.readFileSync(`${process.env.HOME}/.mew2/${msg.from.id}/catch.cd`, "utf8"));
-    } catch (e) { // no cdtimer file
-        cdtimer = time.time();
-        try { // if user doesnt have a directory, make them one
-            fs.mkdirSync(`${process.env.HOME}/.mew2/${msg.from.id}`);
-        } catch (x) {}
-    }
-
-    // if it's been more than 10000 secs since last /pokemon
-    if (cdtimer > 10000) {
-        const pkmn = pokemon.random();
-        var pkobj = {};
-
-        // send pokemon sprite gif
-        let img = request(`http://www.pokestadium.com/sprites/xy/${pkmn.toLowerCase()}.gif`);
-        bot.sendDocument(msg.chat.id, img, {
-            caption : `You caught a wild ${pkmn}`,
-            reply_to_message_id : msg.message_id
-        });
-
-        fs.appendFile(`${process.env.HOME}/.mew2/${msg.from.id}/list`, pkmn + '\n', () => {});
-        fs.writeFile(`${process.env.HOME}/.mew2/${msg.from.id}/catch.cd`, String(time.time()), () => {});
-
-    } else {
-
-        bot.sendMessage(msg.chat.id, `You have to wait ${formatTime(10000 - cdtimer)} seconds until you can catch another pokemon.`, {
-            reply_to_message_id : msg.message_id
-        });
-
-    }
+    require("./pokemon.js").catchPokemon(msg, bot, logCmd);
 });
 
 // what do i have?
@@ -97,13 +44,67 @@ bot.onText(/^\/ping(?:@mew2_bot)?(?:$|\s)/, msg => {
     });
 });
 
+bot.onText(/^\/test/, (msg) => {
+    bot.sendSticker(msg.chat.id, "CAADBAADBQAD28LGAoMPvg4Fv2G-Ag", {
+        reply_to_message_id : msg.message_id,
+		reply_markup: {
+            inline_keyboard : [
+                [ { text: "slap", callback_data: "slap" } ],
+                [ { text: "next", callback_data: "next" } ]
+            ]
+        }
+    });
+});
+
+bot.onText(/^\/card(?:@mew2_bot)? (.+)(?:$|\s)/, (msg, match) => {
+    bot.sendSticker(msg.chat.id, require("./cards.js").card_file_id[Number(match[1])], {
+        reply_to_message_id : msg.message_id
+    });
+});
+
+
+
+bot.on("callback_query", function(callbackQuery) {
+    const data = callbackQuery.data;
+    const msg = callbackQuery.message;
+
+    if (!msg) {
+        console.log("ERROR: callback_query: msg undefined");
+        return;
+    }
+
+	const usr = callbackQuery.from;
+	const opts = {
+		chat_id: msg.chat.id,
+		message_id: msg.message_id
+	};
+
+    if (action == "slap") {
+
+    } else if (action == "next") {
+
+    }
+}
+
+
+
+
+
+
+
 
 
 /** TODO:
-* [x] /pokemon - catch another pokemon
-* [x] /inventory - list pokemon
-* [ ] /train - use xp on a certain pokemon
-* [ ] /battle - battle other players
-* [ ] /release - convert pokemon into xp
-* [?]  /pokedex - pokemon user has had at one point in time
+* POKEMON:
+*  [x] /pokemon - catch another pokemon
+*  [x] /inventory - list pokemon
+*  [ ] /xp - show how much xp the user has to play with
+*  [ ] /train - use xp on a certain pokemon
+*  [ ] /battle - battle other players
+*  [ ] /release - convert pokemon into xp
+*  [?] /pokedex - pokemon user has had/encountered at one point in time
+*
+* More: stuff ill probably add to this bot but might add to another
+* [ ] ERS game with inline keyboard for slapping
+* [ ] OP.GG lookup
 */
