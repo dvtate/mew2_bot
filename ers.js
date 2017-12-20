@@ -14,6 +14,7 @@ game = {
     slapped : bool,
     face_card : false,
     face_card_tries : null,
+    face_card_op : id,
     stack : [ cards currently in play ],
     decks : number of decks in play,
     rules :  {
@@ -67,6 +68,7 @@ function newGame(msg, bot) {
         slapped : false,
         face_card : false,
         face_card_tries : null,
+        face_card_op : "",
         stack : [],
         decks : 1,
         rules :  {
@@ -99,15 +101,66 @@ function newGame(msg, bot) {
 }
 
 function addMember(msg, bot, logCmd) {
-    var creator = {
+    games[msg.chat.id].players.push({
         deck : [],
         name : msg.from.first_name,
         username : msg.from.username,
         id : msg.from.id
-    }
+    });
+}
+
+function addDeck(msg, bot, logCmd) {
+    games[msg.chat.id].decks++;
 }
 
 function startGame(msg, bot, logCmd) {
+
+    // add all the decks together into one `big_deck`
+    var big_deck = [];
+    for (let i = 0; i < games[msg.chat.id].decks; i++)
+        big_deck = big_deck.concat(range(52));
+
+    // shuffle deck 4 times
+    for (let i = 0; i < 4; i++)
+        big_deck = cards.shuffleDeck(big_deck);
+
+
+    // find player who /started game
+    var pnum;
+    var contains = false;
+    for (pnum = 0; i < game.players.length; i++)
+        if (games[msg.chat.players[pnum].id == callbackQuery.from.id) {
+            contains = true;
+            break;
+        }
+
+    // if they aren't already in the game, add them
+    if (!contains) {
+        pnum = games[msg.chat.id].players.length;
+        games[msg.chat.id].players.push({
+            deck : [],
+            name : msg.from.first_name,
+            username : msg.from.username,
+            id : msg.from.id
+        });
+    }
+
+    // evenly distribute cards, burn the rest
+    const cards_per_player = Math.floor(big_deck.length / games[msg.chat.id].players.length);
+    const burnt_cards = cards_per_player * games[msg.chat.id].players.length;
+    bot.sendMessage(msg.chat.id, `Distributing ${cards_per_player} to each player, burning the remaining ${burnt_cards}`);
+
+    for (let i = 0; i < games[msg.chat.id].players.length; i++)
+        games[msg.chat.id].players[i].deck = big_deck.slice(i * cards_per_player, (i + 1) * cards_per_player);
+
+    // burn leftovers
+    for (let i = burnt_cards; i > 0; i--) {
+        const card = big_deck.pop();
+        games[msg.chat.id].stack.push(card);
+        bot.sendSticker(msg.chat.id, )
+    }
+    games[msg.chat.id].player_turn =
+    nextHand(msg.chat.id, msg.from.id, bot);
 
 }
 
@@ -282,16 +335,35 @@ function slap(callbackQuery, bot, logCmd) {
 function nextHand(chat_id, usr_id, bot) {
     const game = games[chat_id];
 
+    if (game.face_card && game.face_card_tries <= 0) {
+        games[chat_id].face_card = false;
+        bot.sendMessage
+    }
+
     if (game.face_card) {
-        game.face_card_tries--;
+        // used this turn
+        games[chat_id].face_card_tries--;
 
-        const game = games[chat_id];
+
+        // abbreviations
         const curPlayer = games[chat_id].players[games[chat_id].player_turn];
-        const card = curPlayer.deck.pop();
 
+        // take their top card and put it on the top of the deck
+        const card = curPlayer.deck.pop();
         games[chat_id].stack.push(card);
 
+        // if they're out of cards
+        if (curPlayer.deck.length == 0) {
+
+            delete games[chat_id].players[games[chat_id].player_turn];
+            games[chat_id].player_turn = games[chat_id].player_turn % games[chat_id].players.length;
+
+            bot.sendMessage(chat_id, `${curPlayer} has played their last card.`);
+
+        }
+
         if (cards.isFaceCard(card)) {
+            bot.sendMessage(chat_id, `${curPlayer.name} beat the facecard with a ${cards.cardName(card)}`);
             let tries;
             switch (card % 13) {
                 case 10: tries = 1; break; // jack
@@ -299,15 +371,17 @@ function nextHand(chat_id, usr_id, bot) {
                 case 12: tries = 3; break; // king
                 case 0:  tries = 4; break; // ace
             }
-            bot.sendMessage(chat_id, `${game.players[game.player_turn].first_name} has ${tries} chances to pull another face-card.`);
+            games[chat_id].face_card_tries = tries;
+
+
+            bot.sendMessage(chat_id, `${games[chat_id].players[games[chat_id].player_turn].name} has ${tries} chances to pull another face-card.`);
         } else {
-            bot.sendMessage(chat_id, `${game.players[game.player_turn].first_name} has '`);
+            bot.sendMessage(chat_id, `${games[chat_id].players[games[chat_id].player_turn].name} has ${games[chat_id].face_card_tries} tries remaining.`);
         }
 
     } else {
         const curPlayer = games[chat_id].players[games[chat_id].player_turn];
         const card = curPlayer.deck.pop();
-        const game = games[chat_id];
 
         games[chat_id].stack.push(card);
 
@@ -353,4 +427,11 @@ function nextHand(chat_id, usr_id, bot) {
         }
 
     }
+
+    /*
+    // everyone else has dropped out
+    if (game.players.length == 1) {
+        bot.sendMessage(chat_id, `${game.players[0].name} has won the game!`);
+    }
+    */
 }
