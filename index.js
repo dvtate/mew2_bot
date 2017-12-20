@@ -44,8 +44,9 @@ bot.onText(/^\/ping(?:@mew2_bot)?(?:$|\s)/, msg => {
     });
 });
 
+// ers test
 bot.onText(/^\/test/, (msg) => {
-    bot.sendSticker(msg.chat.id, "CAADBAADBQAD28LGAoMPvg4Fv2G-Ag", {
+    bot.sendSticker(msg.chat.id, "CAADAQAD5gAD5HbMCODNi4Sm65JcAg", {
         reply_to_message_id : msg.message_id,
 		reply_markup: {
             inline_keyboard : [
@@ -67,29 +68,37 @@ bot.onText(/^\/card(?:@mew2_bot)? (.+)(?:$|\s)/, (msg, match) => {
 bot.on("callback_query", function(callbackQuery) {
     const data = callbackQuery.data;
     const msg = callbackQuery.message;
-
+    const usr = callbackQuery.from;
     if (!msg) {
         console.log("ERROR: callback_query: msg undefined");
         return;
     }
 
-	const usr = callbackQuery.from;
 	const opts = {
 		chat_id: msg.chat.id,
 		message_id: msg.message_id
 	};
 
-    if (action == "slap") {
-
-    } else if (action == "next") {
-
+    if (data == "slap") {
+        ers.slap(callbackQuery, bot);
+    } else if (data == "next") {
+        ers.nextHand(callbackQuery, bot);
     }
-}
+});
 
 
-
-
-
+bot.onText(/^\/ers(?:@mew2_bot)?(?:$|\s)/, (msg) => {
+    ers.newGame(msg, bot);
+});
+bot.onText(/^\/join_ERS(?:@mew2_bot)?(?:$|\s)/, (msg) => {
+    ers.addMember(msg, bot);
+});
+bot.onText(/^\/add_deck(?:@mew2_bot)?(?:$|\s)/, (msg) => {
+    ers.addDeck(msg, bot);
+});
+bot.onText(/^\/start_ERS(?:@mew2_bot)?(?:$|\s)/, (msg) => {
+    ers.startGame(msg, bot);
+});
 
 
 
