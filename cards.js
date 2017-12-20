@@ -89,7 +89,7 @@ module.exports.isFaceCard = function (ind) {
     return val == 0 || val == 12 || val == 11 || val == 10;
 }
 
-module.exports.cardName(index) {
+module.exports.cardName = function (index) {
     const vals = [ "ace", "two", "three", "four", "five", "six", "seven",
                    "eight", "nine", "ten", "jack", "queen", "king" ];
     const suits = [ "clubs", "diamonds", "hearts", "spades" ];
