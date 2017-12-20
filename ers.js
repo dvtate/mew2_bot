@@ -194,7 +194,8 @@ module.exports.startGame = function (msg, bot) {
     } */ );
 
     games[msg.chat.id].player_turn = pnum;
-    nextHand(msg.chat.id, msg.from.id, bot);
+
+    module.exports.nextHand({ message : msg, from : msg.from, id : null }, bot);
 
 }
 
@@ -209,9 +210,9 @@ module.exports.slap = function slap (callbackQuery, bot) {
         if (game.slapped == false) {
             game.slapped = true;
 
-            if (stack.length > 2) {
+            if (game.stack.length > 2) {
                 if (game.rules.double &&
-                    stack[stack.length - 1] == stack[stack.length - 2])
+                    game.stack[game.stack.length - 1] == game.stack[game.stack.length - 2])
                 {
                     // get user number / see if they're in the game already
                     var i;
@@ -251,11 +252,11 @@ module.exports.slap = function slap (callbackQuery, bot) {
                     games[chat_id].slapped = false;
 
 
-                    nextHand(chat_id, game.players[i].id, bot);
+                    module.exports.nextHand(callbackQuery, bot);
 
                 }
                 else if (game.rules.sandwich &&
-                         stack[stack.length - 1] == stack[stack.length - 3])
+                         game.stack[game.stack.length - 1] == game.stack[game.stack.length - 3])
                 {
                     // get user number / see if they're in the game already
                     var i;
@@ -299,11 +300,11 @@ module.exports.slap = function slap (callbackQuery, bot) {
                     games[chat_id].slapped = false;
 
 
-                    nextHand(chat_id, game.players[i].id, bot);
+                    module.exports.nextHand(callbackQuery, bot);
 
                 }
                 else if (game.rules.top_bottom &&
-                         stack[stack.length - 1] == stack[0])
+                         game.stack[game.stack.length - 1] == game.stack[0])
                 {
 
                 }
@@ -313,7 +314,7 @@ module.exports.slap = function slap (callbackQuery, bot) {
                     var i;
                     var contains = false;
                     for (i = 0; i < game.players.length; i++)
-                        if (players[i].id == callbackQuery.from.id) {
+                        if (games[chat_id].players[i].id == callbackQuery.from.id) {
                             contains = true;
                             break;
                         }
@@ -366,19 +367,24 @@ module.exports.slap = function slap (callbackQuery, bot) {
     }
 }
 
-module.exports.nextHand = function nextHand(callbackQuery, bot) {
-    const data = callbackQuery.data;
+
+module.exports.nextHand = function (callbackQuery, bot) {
     const msg = callbackQuery.message;
     const usr = callbackQuery.from;
     const usr_id = usr.id;
     const chat_id = msg.chat.id;
     const game = games[chat_id];
 
+    if (!game) {
+        bot.sendMessage(chat_id, `There isn't a currently running /ers game in this chat, ${usr.first_name}.`);
+        return;
+    }
+
 
     var pnum;
     var contains = false;
     for (i = 0; i < game.players.length; i++)
-        if (players[i].id == game.face_card_op.id) {
+        if (game.players[i].id == usr_id) {
             contains = true;
             break;
         }
@@ -387,10 +393,12 @@ module.exports.nextHand = function nextHand(callbackQuery, bot) {
         bot.answerCallbackQuery(callbackQuery.id, {
             text : "you aren't in the game"
         });
+        return;
     } else if (pnum != game.player_turn) {
         bot.answerCallbackQuery(callbackQuery.id, {
             text : "it's not your turn"
         });
+        return;
     }
 
     if (game.face_card && game.face_card_tries <= 0) {
@@ -416,7 +424,7 @@ module.exports.nextHand = function nextHand(callbackQuery, bot) {
         bot.sendMessage(chat_id, `${game.face_card_op.name}'s facecard couldn't be beaten. They picked up ${cardsAdded} cards.`);
 
         // continue game
-        nextHand(chat_id, usr, bot);
+        module.exports.nextHand(callbackQuery, bot);
         return;
 
     }
