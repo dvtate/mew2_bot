@@ -99,9 +99,12 @@ bot.onText(/^\/add_deck(?:@mew2_bot)?(?:$|\s)/, (msg) => {
 bot.onText(/^\/start_ERS(?:@mew2_bot)?(?:$|\s)/, (msg) => {
     ers.startGame(msg, bot);
 });
-
-
-
+bot.onText(/^\/end_ERS(?:@mew2_bot)?(?:$|\s)/, (msg) => {
+    ers.endGame(msg, bot);
+});
+bot.onText(/^\/count_cards_ERS(?:@mew2_bot)?(?:$|\s)/, (msg) => {
+    ers.countCards(msg, bot);
+});
 
 /** TODO:
 * POKEMON:
