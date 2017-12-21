@@ -38,8 +38,8 @@ player = {
 */
 
 
-module.exports.endGame = function (chat_id, msg, bot) {
-
+module.exports.endGame = function (msg, bot) {
+    const chat_id = msg.chat.id;
     // sort players by deck size
     const players = games[chat_id].players;
     players.sort((a, b) => {
@@ -58,9 +58,13 @@ module.exports.endGame = function (chat_id, msg, bot) {
     bot.sendMessage(chat_id, `Ended game:\n${stats}`, {
         reply_to_message_id : msg.message_id
     });
+
+    console.log(`ended ERS#${msg.chat.id}:{\n${stats}}`)
 }
 
 module.exports.newGame = function(msg, bot) {
+    console.log(`creating new ERS game #${msg.chat.id}`);
+
 
     games[msg.chat.id] = {
         players : [],
@@ -84,13 +88,12 @@ module.exports.newGame = function(msg, bot) {
             burn : 1
         }
     };
-    var creator = {
+    games[msg.chat.id].players.push({
         deck : [],
         name : msg.from.first_name,
         username : msg.from.username,
         id : msg.from.id
-    }
-    games[msg.chat.id].players.push(creator);
+    });
     bot.sendMessage(msg.chat.id, `ERS game created. Use the following commands:\n
         /join_ERS - join the game
         /add_deck - add additional decks of cards (start with one)
@@ -102,17 +105,29 @@ module.exports.newGame = function(msg, bot) {
 module.exports.addMember = function(msg, bot) {
     // TODO: check if they already /join'ed
 
+
     if (!games[msg.chat.id]) {
         bot.sendMessage(msg.chat.id, "/join_ERS expected a game to be in progress. You can start a new game with /ers", {
             reply_to_message_id : msg.message_id
         });
     } else {
-        games[msg.chat.id].players.push({
-            deck : [],
-            name : msg.from.first_name,
-            username : msg.from.username,
-            id : msg.from.id
-        });
+
+        var contains = false;
+        for (var i = 0; i < games[msg.chat.id].players.length; i++) {
+            if (games[msg.chat.id].players[i] == msg.from.id)
+                contains = true;
+                break;
+            }
+        if (!contains) {
+            games[msg.chat.id].players.push({
+                deck : [],
+                name : msg.from.first_name,
+                username : msg.from.username,
+                id : msg.from.id
+            });
+            console.log(`added ${msg.from.first_name} to ERS game ${msg.chat.id}`);
+        }
+
         bot.sendMessage(msg.chat.id, `Added ${msg.from.first_name} to the game. There are now ${games[msg.chat.id].players.length} players`, {
             reply_to_message_id : msg.message_id
         });
@@ -150,7 +165,7 @@ module.exports.startGame = function (msg, bot) {
     // find player who /started game
     var pnum;
     var contains = false;
-    for (pnum = 0; pnum < games[msg.chat.id].players.length; i++)
+    for (pnum = 0; pnum < games[msg.chat.id].players.length; pnum++)
         if (games[msg.chat.id].players[pnum].id == msg.from.id) {
             contains = true;
             break;
@@ -169,29 +184,20 @@ module.exports.startGame = function (msg, bot) {
 
     // evenly distribute cards, burn the rest
     const cards_per_player = Math.floor(big_deck.length / games[msg.chat.id].players.length);
-    const burnt_cards = cards_per_player * games[msg.chat.id].players.length;
+    const burnt_cards = big_deck.length - (cards_per_player * games[msg.chat.id].players.length);
+    console.log(`bd.len = ${big_deck.length}, player_ct = ${games[msg.chat.id].players.length}`);
     bot.sendMessage(msg.chat.id, `Distributing ${cards_per_player} to each player, burning the remaining ${burnt_cards}`);
     // distribute
     for (let i = 0; i < games[msg.chat.id].players.length; i++)
         games[msg.chat.id].players[i].deck = big_deck.slice(i * cards_per_player, (i + 1) * cards_per_player);
 
     // burn leftovers
-    for (let i = burnt_cards; i > 1; i--) {
+    for (let i = burnt_cards; i > 0; i--) {
         const card = big_deck.pop();
         games[msg.chat.id].stack.push(card);
         bot.sendSticker(msg.chat.id, cards.card_file_id[card]);
     }
-    const card = big_deck.pop();
-    games[msg.chat.id].stack.push(card);
-    // show card
-    bot.sendSticker(msg.chat.id, cards.card_file_id[card] /*, {
-        reply_markup: {
-            inline_keyboard : [
-                [ { text: "slap", callback_data: "slap" } ],
-                [ { text: `next (${msg.from.first_name})`, callback_data: "next" } ]
-            ]
-        }
-    } */ );
+
 
     games[msg.chat.id].player_turn = pnum;
 
@@ -199,7 +205,7 @@ module.exports.startGame = function (msg, bot) {
 
 }
 
-module.exports.slap = function slap (callbackQuery, bot) {
+module.exports.slap = function (callbackQuery, bot) {
     const msg = callbackQuery.message;
     const chat_id = msg.chat.id;
 
@@ -363,7 +369,7 @@ module.exports.slap = function slap (callbackQuery, bot) {
     } else { // game has ended
         bot.answerCallbackQuery(callbackQuery.id, {
             text : "your slap was invalid :/"
-        })
+        });
     }
 }
 
@@ -380,28 +386,26 @@ module.exports.nextHand = function (callbackQuery, bot) {
         return;
     }
 
-
+    console.log(usr);
     var pnum;
     var contains = false;
-    for (i = 0; i < game.players.length; i++)
-        if (game.players[i].id == usr_id) {
+    for (pnum = 0; pnum < game.players.length; pnum++)
+        if (games[chat_id].players[pnum].id
+             == usr.id) {
             contains = true;
             break;
         }
+
 
     if (!contains) {
         bot.answerCallbackQuery(callbackQuery.id, {
             text : "you aren't in the game"
         });
-        return;
-    } else if (pnum != game.player_turn) {
+    } else if (pnum != games[chat_id].player_turn) {
         bot.answerCallbackQuery(callbackQuery.id, {
             text : "it's not your turn"
         });
-        return;
-    }
-
-    if (game.face_card && game.face_card_tries <= 0) {
+    } else if (game.face_card && game.face_card_tries <= 0) {
         games[chat_id].face_card = false;
 
         var pnum;
@@ -425,11 +429,8 @@ module.exports.nextHand = function (callbackQuery, bot) {
 
         // continue game
         module.exports.nextHand(callbackQuery, bot);
-        return;
 
-    }
-
-    if (game.face_card) {
+    } else if (game.face_card) {
         // used this turn
         games[chat_id].face_card_tries--;
 
@@ -466,10 +467,22 @@ module.exports.nextHand = function (callbackQuery, bot) {
             fcop_cpy.deck = [];
             games[chat_id].face_card_op = curPlayer;
 
-            bot.sendMessage(chat_id, `${games[chat_id].players[games[chat_id].player_turn].name} has ${tries} chances to pull another face-card.`);
+            bot.sendMessage(chat_id, `Now ${games[chat_id].players[games[chat_id].player_turn].name} has ${tries} chances to pull another face-card.`);
         } else {
             bot.sendMessage(chat_id, `${games[chat_id].players[games[chat_id].player_turn].name} has ${games[chat_id].face_card_tries} tries remaining.`);
         }
+
+
+        // show card
+        bot.sendSticker(msg.chat.id, cards.card_file_id[card], {
+            reply_to_message_id : msg.message_id,
+            reply_markup: {
+                inline_keyboard : [
+                    [ { text: "slap", callback_data: "slap" } ],
+                    [ { text: `next (${games[chat_id].players[games[chat_id].player_turn].name})`, callback_data: "next" } ]
+                ]
+            }
+        });
 
     } else {
         const curPlayer = games[chat_id].players[games[chat_id].player_turn];
@@ -499,21 +512,12 @@ module.exports.nextHand = function (callbackQuery, bot) {
             var fcop_cpy = curPlayer;
             fcop_cpy.deck = [];
             games[chat_id].face_card_op = curPlayer;
-
-            bot.sendMessage(chat_id, `${game.players[game.player_turn].first_name} has ${tries} chances to pull another face-card.`);
+            bot.sendMessage(chat_id, `${game.players[game.player_turn].name} has ${tries} chances to pull another face-card.`);
         } else {
-            bot.sendMessage(chat_id, `It's ${game.players[game.player_turn].first_name}'s turn now.'`);
+            bot.sendMessage(chat_id, `It's ${game.players[game.player_turn].name}'s turn now.'`);
         }
-        // show card
-        bot.sendSticker(msg.chat.id, cards.card_file_id[card], {
-            reply_to_message_id : msg.message_id,
-    		reply_markup: {
-                inline_keyboard : [
-                    [ { text: "slap", callback_data: "slap" } ],
-                    [ { text: `next (${game.players[game.player_turn]})`, callback_data: "next" } ]
-                ]
-            }
-        });
+
+
 
         if (curPlayer.deck.length == 0) {
             delete games[chat_id].players[games[chat_id].player_turn];
@@ -522,6 +526,16 @@ module.exports.nextHand = function (callbackQuery, bot) {
             games[chat_id].player_turn = (games[chat_id].player_turn + 1) % games[chat_id].players.length;
         }
 
+        // show card
+        bot.sendSticker(msg.chat.id, cards.card_file_id[card], {
+            reply_to_message_id : msg.message_id,
+            reply_markup: {
+                inline_keyboard : [
+                    [ { text: "slap", callback_data: "slap" } ],
+                    [ { text: `next (${games[chat_id].players[games[chat_id].player_turn].name})`, callback_data: "next" } ]
+                ]
+            }
+        });
     }
 
     /*
@@ -530,4 +544,22 @@ module.exports.nextHand = function (callbackQuery, bot) {
         bot.sendMessage(chat_id, `${game.players[0].name} has won the game!`);
     }
     */
-}
+};
+
+
+module.exports.countCards = (msg, bot) => {
+    var pnum, contains = false;
+    for (pnum = 0; pnum < games[msg.chat.id].players.length; pnum++)
+        if (games[msg.chat.id].players[pnum].id = msg.from.id) {
+            contains = true;
+        }
+
+    if (contains)
+        bot.sendMessage(msg.chat.id, `You have ${games[msg.chat.id].players[pnum].deck.length} cards`, {
+            reply_to_message_id : msg.message_id
+        });
+    else
+        bot.sendMessage(msg.chat.id, "You have 0 cards.", {
+            reply_to_message_id : msg.message_id
+        });
+};
