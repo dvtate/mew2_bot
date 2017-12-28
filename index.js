@@ -51,7 +51,8 @@ bot.onText(/^\/test/, (msg) => {
 		reply_markup: {
             inline_keyboard : [
                 [ { text: "slap", callback_data: "slap" } ],
-                [ { text: "next", callback_data: "next" } ]
+                [ { text: "next", callback_data: "next" } ],
+				[ { text: "ff", callback_data: "ff" } ]
             ]
         }
     });
@@ -83,7 +84,11 @@ bot.on("callback_query", function(callbackQuery) {
         ers.slap(callbackQuery, bot);
     } else if (data == "next") {
         ers.nextHand(callbackQuery, bot);
-    }
+    } else if (data == "ff") {
+		bot.answerCallbackQuery(callbackQuery.id, {
+			text: "hi there"
+		});
+	}
 });
 
 
