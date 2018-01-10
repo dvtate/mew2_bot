@@ -216,6 +216,13 @@ module.exports.startGame = function (msg, bot) {
     console.log(`started game ${msg.chat.id}`);
 }
 
+
+function pickUpCards(callbackQuery, bot) {
+
+
+
+}
+
 module.exports.slap = function (callbackQuery, bot) {
     const msg = callbackQuery.message;
     const chat_id = msg.chat.id;
