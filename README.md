@@ -1,2 +1,3 @@
-# script-bot
-A node.js telegram bot which can run YodaScript programs and provide bindings
+# mew2_bot
+A node.js telegram bot which performs a variety of functions for my group chats.
+
