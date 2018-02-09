@@ -8,7 +8,7 @@ printf "marking scripts as runable..."
 chmod +x *.sh
 echo " done"
 
-# if token wasn't exported by update.sh or steve.sh
+# if token wasn't exported by update.sh or run.sh
 # then we need to prompt the user for it
 if [ ! -f $HOME/.mew2/key ]; then
 	# get bot token
